@@ -1,0 +1,12 @@
+domain: goharbor.io
+layout:
+- go.kubebuilder.io/v3
+projectName: harbor-cert-injector
+repo: github.com/szlabs/harbor-cert-injector
+resources:
+- controller: true
+  domain: goharbor.io
+  group: day2-operations
+  kind: CertInjection
+  version: v1alpha1
+version: "3"
