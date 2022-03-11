@@ -4,9 +4,28 @@ layout:
 projectName: harbor-cert-injector
 repo: github.com/szlabs/harbor-cert-injector
 resources:
-- controller: true
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
   domain: goharbor.io
   group: day2-operations
   kind: CertInjection
+  path: github.com/szlabs/harbor-cert-injector/api/v1alpha1
+  version: v1alpha1
+- controller: true
+  domain: goharbor.io
+  group: day2-operations
+  kind: CertInjectionForPackage
+  version: v1alpha1
+- controller: true
+  domain: goharbor.io
+  group: day2-operations
+  kind: CertInjectionViaSecret
+  version: v1alpha1
+- controller: true
+  domain: goharbor.io
+  group: day2-operations
+  kind: CertInjectionForCluster
   version: v1alpha1
 version: "3"

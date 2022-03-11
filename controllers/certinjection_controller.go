@@ -23,6 +23,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
+	"github.com/szlabs/harbor-cert-injector/pkg/reconcile"
 )
 
 // CertInjectionReconciler reconciles a CertInjection object
@@ -37,17 +40,12 @@ type CertInjectionReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the CertInjection object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
-
-	// TODO(user): your logic here
+	logger := log.FromContext(ctx)
+	logger.WithValues("cert-injection", req.NamespacedName)
 
 	return ctrl.Result{}, nil
 }
@@ -55,7 +53,10 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 // SetupWithManager sets up the controller with the Manager.
 func (r *CertInjectionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		// Uncomment the following line adding a pointer to an instance of the controlled resource as an argument
-		// For().
+		For(&v1alpha1.CertInjection{}).
 		Complete(r)
+}
+
+func init() {
+	reconcile.AddToControllerList(&CertInjectionReconciler{})
 }

@@ -1,0 +1,20 @@
+# permissions for end users to view certinjections.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: certinjection-viewer-role
+rules:
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections/status
+  verbs:
+  - get

@@ -1,0 +1,24 @@
+# permissions for end users to edit certinjections.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: certinjection-editor-role
+rules:
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections/status
+  verbs:
+  - get

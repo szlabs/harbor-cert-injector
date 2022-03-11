@@ -1,0 +1,6 @@
+apiVersion: day2-operations.goharbor.io/v1alpha1
+kind: CertInjection
+metadata:
+  name: certinjection-sample
+spec:
+  # TODO(user): Add fields here
