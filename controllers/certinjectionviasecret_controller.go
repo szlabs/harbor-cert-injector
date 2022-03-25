@@ -19,9 +19,12 @@ package controllers
 import (
 	"context"
 
-	"github.com/szlabs/harbor-cert-injector/pkg/reconcile"
-
+	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
+	"github.com/szlabs/harbor-cert-injector/pkg/cert/injection"
 	"github.com/szlabs/harbor-cert-injector/pkg/controller"
+	"github.com/szlabs/harbor-cert-injector/pkg/errs"
+	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,18 +42,28 @@ type CertInjectionViaSecretReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the CertInjectionViaSecret object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *CertInjectionViaSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
+	logger = logger.WithValues("secret", req.NamespacedName)
 
-	// TODO(user): your logic here
+	// Init the common reconciler.
+	reconciler := injection.NewBuilder().
+		UseClient(r.Client).
+		WithLogger(logger).
+		WithScheme(r.Scheme).
+		Reconciler()
 
+	// Do reconcile.
+	if err := reconciler.Reconcile(ctx, req.NamespacedName, func() client.Object {
+		return &corev1.Secret{}
+	}); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	logger.Info("Reconcile loop completed")
 	return ctrl.Result{}, nil
 }
 
@@ -59,11 +72,20 @@ func (r *CertInjectionViaSecretReconciler) SetupWithManager(mgr ctrl.Manager) er
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 
+	// Setup index.
+	if err := controller.SetupCertInjectionIndex(mgr, &controller.GVK{
+		APIVersion: corev1.SchemeGroupVersion.String(),
+		Kind:       mytypes.Secret,
+	}); err != nil {
+		return errs.Wrap("failed to set up index", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Secret{}, controller.WithExpectedLabelPredicates()).
+		Owns(&v1alpha1.CertInjection{}).
 		Complete(r)
 }
 
 func init() {
-	reconcile.AddToControllerList(&CertInjectionViaSecretReconciler{})
+	controller.AddToControllerList(&CertInjectionViaSecretReconciler{})
 }

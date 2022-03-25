@@ -29,18 +29,26 @@ type CertInjectionSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Target where
-	CertSource corev1.ObjectReference `json:"certSource"`
-	// Injector injects the CA cert into worker nodes where containerd is running.
-	// Rely on a DaemonSet to do injection work.
-	Injector corev1.ObjectReference `json:"injector"`
+	// +kubebuilder:validation:Required
+	// ExternalDNS of the harbor registry.
+	ExternalDNS string `json:"externalDNS"`
+
+	// +kubebuilder:validation:Required
+	// CertSecret is the name of the secret which contains the certificate.
+	CertSecret corev1.LocalObjectReference `json:"certSecret"`
 }
 
 // CertInjectionStatus defines the observed state of CertInjection
 type CertInjectionStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Conditions []CertInjectionCondition `json:"conditions"`
+	// Conditions of CertInjection.
+	Conditions []CertInjectionCondition `json:"conditions,omitempty"`
+	// CertSourceRef where the CA certification from.
+	CertSourceRef *corev1.ObjectReference `json:"certSource,omitempty"`
+	// Injector injects the CA cert into worker nodes where containerd is running.
+	// Rely on a DaemonSet to do injection work.
+	Injector *corev1.ObjectReference `json:"injector,omitempty"`
 }
 
 // CertInjectionCondition defines the observed condition of CertInjectionStatus.

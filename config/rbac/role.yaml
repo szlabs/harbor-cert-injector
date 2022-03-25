@@ -14,6 +14,32 @@ rules:
   - list
   - watch
 - apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - goharbor.io
   resources:
   - harborclusters

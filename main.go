@@ -20,9 +20,8 @@ import (
 	"flag"
 	"os"
 
-	"github.com/szlabs/harbor-cert-injector/pkg/reconcile"
-
 	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
+	"github.com/szlabs/harbor-cert-injector/pkg/controller"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -86,7 +85,7 @@ func main() {
 		fatal(err, "unable to start manager")
 	}
 
-	if err = reconcile.SetupControllers(mgr); err != nil {
+	if err = controller.SetupControllers(mgr); err != nil {
 		fatal(err, "unable to set up controllers")
 	}
 

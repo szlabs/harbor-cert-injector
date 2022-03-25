@@ -19,18 +19,20 @@ package controllers
 import (
 	"context"
 
-	"github.com/szlabs/harbor-cert-injector/pkg/reconcile"
-
-	"github.com/szlabs/harbor-cert-injector/pkg/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
+	"github.com/szlabs/harbor-cert-injector/pkg/cert/injection"
+	"github.com/szlabs/harbor-cert-injector/pkg/controller"
+	"github.com/szlabs/harbor-cert-injector/pkg/errs"
+	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
 	packagev1alpha1 "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/packaging/v1alpha1"
 )
 
-// CertInjectionForPackageReconciler reconciles a CertInjectionForPackage object
+// CertInjectionForPackageReconciler reconciles a kapp PackageInstall object
 type CertInjectionForPackageReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -45,8 +47,23 @@ type CertInjectionForPackageReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *CertInjectionForPackageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	logger = logger.WithValues("packageinstall", req.NamespacedName)
+	logger = logger.WithValues("package install", req.NamespacedName)
 
+	// Init the common reconciler.
+	reconciler := injection.NewBuilder().
+		UseClient(r.Client).
+		WithLogger(logger).
+		WithScheme(r.Scheme).
+		Reconciler()
+
+	// Do reconcile.
+	if err := reconciler.Reconcile(ctx, req.NamespacedName, func() client.Object {
+		return &packagev1alpha1.PackageInstall{}
+	}); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	logger.Info("Reconcile loop completed")
 	return ctrl.Result{}, nil
 }
 
@@ -55,11 +72,20 @@ func (r *CertInjectionForPackageReconciler) SetupWithManager(mgr ctrl.Manager) e
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 
+	// Setup index.
+	if err := controller.SetupCertInjectionIndex(mgr, &controller.GVK{
+		APIVersion: packagev1alpha1.SchemeGroupVersion.String(),
+		Kind:       mytypes.PackageInstall,
+	}); err != nil {
+		return errs.Wrap("failed to set up index", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&packagev1alpha1.PackageInstall{}, controller.WithExpectedLabelPredicates()).
+		Owns(&v1alpha1.CertInjection{}).
 		Complete(r)
 }
 
 func init() {
-	reconcile.AddToControllerList(&CertInjectionForPackageReconciler{})
+	controller.AddToControllerList(&CertInjectionForPackageReconciler{})
 }

@@ -19,11 +19,13 @@ package controllers
 import (
 	"context"
 
-	"github.com/szlabs/harbor-cert-injector/pkg/reconcile"
-
 	goharborv1beta1 "github.com/goharbor/harbor-operator/apis/goharbor.io/v1beta1"
+	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
+	"github.com/szlabs/harbor-cert-injector/pkg/cert/injection"
 	"github.com/szlabs/harbor-cert-injector/pkg/controller"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/szlabs/harbor-cert-injector/pkg/errs"
+	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,17 +49,21 @@ func (r *CertInjectionForClusterReconciler) Reconcile(ctx context.Context, req c
 	logger := log.FromContext(ctx)
 	logger.WithValues("harborcluster", req.NamespacedName)
 
-	hc := &goharborv1beta1.HarborCluster{}
-	err := r.Get(ctx, req.NamespacedName, hc)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Info("Harbor cluster is not found. Since it must be deleted.")
-			return ctrl.Result{}, nil
-		}
+	// Init the common reconciler.
+	reconciler := injection.NewBuilder().
+		UseClient(r.Client).
+		WithLogger(logger).
+		WithScheme(r.Scheme).
+		Reconciler()
 
-		logger.Error(err, "get harborcluster failed")
+	// Do reconcile.
+	if err := reconciler.Reconcile(ctx, req.NamespacedName, func() client.Object {
+		return &goharborv1beta1.HarborCluster{}
+	}); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	logger.Info("Reconcile loop completed")
 
 	return ctrl.Result{}, nil
 }
@@ -67,11 +73,20 @@ func (r *CertInjectionForClusterReconciler) SetupWithManager(mgr ctrl.Manager) e
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 
+	// Setup index.
+	if err := controller.SetupCertInjectionIndex(mgr, &controller.GVK{
+		APIVersion: goharborv1beta1.GroupVersion.String(),
+		Kind:       mytypes.HarborCluster,
+	}); err != nil {
+		return errs.Wrap("failed to set up index", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&goharborv1beta1.HarborCluster{}, controller.WithExpectedLabelPredicates()).
+		Owns(&v1alpha1.CertInjection{}).
 		Complete(r)
 }
 
 func init() {
-	reconcile.AddToControllerList(&CertInjectionForClusterReconciler{})
+	controller.AddToControllerList(&CertInjectionForClusterReconciler{})
 }
