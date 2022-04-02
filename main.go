@@ -20,17 +20,20 @@ import (
 	"flag"
 	"os"
 
+	goharborv1beta1 "github.com/goharbor/harbor-operator/apis/goharbor.io/v1beta1"
 	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
 	"github.com/szlabs/harbor-cert-injector/pkg/controller"
+	packagev1alpha1 "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/packaging/v1alpha1"
+
+	// Init controllers
+	_ "github.com/szlabs/harbor-cert-injector/controllers"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
-	goharborv1beta1 "github.com/goharbor/harbor-operator/apis/goharbor.io/v1beta1"
-	packagev1alpha1 "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/packaging/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
