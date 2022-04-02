@@ -9,8 +9,10 @@ namespace: harbor-cert-injector-system
 namePrefix: harbor-cert-injector-
 
 # Labels to add to all resources and selectors.
-#commonLabels:
-#  someName: someValue
+commonLabels:
+  injector.goharbor.io/version: v0.1.0
+  injector.goharbor.io/provider: szlabs
+  goharbro.io/app: harbor-CA-cert-injection
 
 bases:
 - ../crd

@@ -1,0 +1,505 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-system
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: certinjections.day2-operations.goharbor.io
+spec:
+  group: day2-operations.goharbor.io
+  names:
+    kind: CertInjection
+    listKind: CertInjectionList
+    plural: certinjections
+    singular: certinjection
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CertInjection is the Schema for the certinjections API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CertInjectionSpec defines the desired state of CertInjection
+            properties:
+              certSecret:
+                description: CertSecret is the name of the secret which contains the
+                  certificate.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              externalDNS:
+                description: ExternalDNS of the harbor registry.
+                type: string
+            required:
+            - certSecret
+            - externalDNS
+            type: object
+          status:
+            description: CertInjectionStatus defines the observed state of CertInjection
+            properties:
+              certSource:
+                description: CertSourceRef where the CA certification from.
+                properties:
+                  apiVersion:
+                    description: API version of the referent.
+                    type: string
+                  fieldPath:
+                    description: 'If referring to a piece of an object instead of
+                      an entire object, this string should contain a valid JSON/Go
+                      field access statement, such as desiredState.manifest.containers[2].
+                      For example, if the object reference is to a container within
+                      a pod, this would take on a value like: "spec.containers{name}"
+                      (where "name" refers to the name of the container that triggered
+                      the event) or if no container name is specified "spec.containers[2]"
+                      (container with index 2 in this pod). This syntax is chosen
+                      only to have some well-defined way of referencing a part of
+                      an object. TODO: this design is not final and this field is
+                      subject to change in the future.'
+                    type: string
+                  kind:
+                    description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                    type: string
+                  namespace:
+                    description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                    type: string
+                  resourceVersion:
+                    description: 'Specific resourceVersion to which this reference
+                      is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                    type: string
+                  uid:
+                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                    type: string
+                type: object
+              conditions:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file Conditions of CertInjection.'
+                items:
+                  description: CertInjectionCondition defines the observed condition
+                    of CertInjectionStatus.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              injector:
+                description: Injector injects the CA cert into worker nodes where
+                  containerd is running. Rely on a DaemonSet to do injection work.
+                properties:
+                  apiVersion:
+                    description: API version of the referent.
+                    type: string
+                  fieldPath:
+                    description: 'If referring to a piece of an object instead of
+                      an entire object, this string should contain a valid JSON/Go
+                      field access statement, such as desiredState.manifest.containers[2].
+                      For example, if the object reference is to a container within
+                      a pod, this would take on a value like: "spec.containers{name}"
+                      (where "name" refers to the name of the container that triggered
+                      the event) or if no container name is specified "spec.containers[2]"
+                      (container with index 2 in this pod). This syntax is chosen
+                      only to have some well-defined way of referencing a part of
+                      an object. TODO: this design is not final and this field is
+                      subject to change in the future.'
+                    type: string
+                  kind:
+                    description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                    type: string
+                  namespace:
+                    description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                    type: string
+                  resourceVersion:
+                    description: 'Specific resourceVersion to which this reference
+                      is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                    type: string
+                  uid:
+                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                    type: string
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-controller-manager
+  namespace: harbor-cert-injector-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-leader-election-role
+  namespace: harbor-cert-injector-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - day2-operations.goharbor.io
+  resources:
+  - certinjections/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - goharbor.io
+  resources:
+  - harborclusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - packaging.carvel.dev
+  resources:
+  - packageinstalls
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-leader-election-rolebinding
+  namespace: harbor-cert-injector-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: harbor-cert-injector-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: harbor-cert-injector-controller-manager
+  namespace: harbor-cert-injector-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: harbor-cert-injector-manager-role
+subjects:
+- kind: ServiceAccount
+  name: harbor-cert-injector-controller-manager
+  namespace: harbor-cert-injector-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: harbor-cert-injector-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: harbor-cert-injector-controller-manager
+  namespace: harbor-cert-injector-system
+---
+apiVersion: v1
+data:
+  controller_manager_config.yaml: |
+    apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
+    kind: ControllerManagerConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: b1ce900a.goharbor.io
+kind: ConfigMap
+metadata:
+  labels:
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-manager-config
+  namespace: harbor-cert-injector-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-controller-manager-metrics-service
+  namespace: harbor-cert-injector-system
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    control-plane: controller-manager
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+    goharbro.io/app: harbor-CA-cert-injection
+    injector.goharbor.io/provider: szlabs
+    injector.goharbor.io/version: v0.1.0
+  name: harbor-cert-injector-controller-manager
+  namespace: harbor-cert-injector-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      goharbro.io/app: harbor-CA-cert-injection
+      injector.goharbor.io/provider: szlabs
+      injector.goharbor.io/version: v0.1.0
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+        goharbro.io/app: harbor-CA-cert-injection
+        injector.goharbor.io/provider: szlabs
+        injector.goharbor.io/version: v0.1.0
+    spec:
+      containers:
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=0
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
+      - args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
+        command:
+        - /manager
+        image: controller:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: harbor-cert-injector-controller-manager
+      terminationGracePeriodSeconds: 10
