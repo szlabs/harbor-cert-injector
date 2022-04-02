@@ -32,6 +32,10 @@ import (
 	packagev1alpha1 "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/packaging/v1alpha1"
 )
 
+const (
+	piIndexKey = ".metadata.controller.pi"
+)
+
 // CertInjectionForPackageReconciler reconciles a kapp PackageInstall object
 type CertInjectionForPackageReconciler struct {
 	client.Client
@@ -54,6 +58,7 @@ func (r *CertInjectionForPackageReconciler) Reconcile(ctx context.Context, req c
 		UseClient(r.Client).
 		WithLogger(logger).
 		WithScheme(r.Scheme).
+		UseIndexKey(piIndexKey).
 		Reconciler()
 
 	// Do reconcile.
@@ -77,7 +82,7 @@ func (r *CertInjectionForPackageReconciler) SetupWithManager(mgr ctrl.Manager) e
 	r.Scheme = mgr.GetScheme()
 
 	// Setup index.
-	if err := controller.SetupCertInjectionIndex(mgr, &controller.GVK{
+	if err := controller.SetupCertInjectionIndex(mgr, piIndexKey, &controller.GVK{
 		APIVersion: packagev1alpha1.SchemeGroupVersion.String(),
 		Kind:       mytypes.PackageInstall,
 	}); err != nil {

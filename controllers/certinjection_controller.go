@@ -34,6 +34,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	indexKey = ".metadata.controller"
+)
+
 // CertInjectionReconciler reconciles a CertInjection object
 type CertInjectionReconciler struct {
 	client.Client
@@ -66,7 +70,7 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Check the existence of the underlying daemon set.
 	dsList := &appv1.DaemonSetList{}
-	if err := r.List(ctx, dsList, client.InNamespace(req.Namespace), client.MatchingFields{controller.JobOwnerKey: req.Name}); err != nil {
+	if err := r.List(ctx, dsList, client.InNamespace(req.Namespace), client.MatchingFields{indexKey: req.Name}); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -106,7 +110,7 @@ func (r *CertInjectionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &appv1.DaemonSet{}, controller.JobOwnerKey, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &appv1.DaemonSet{}, indexKey, func(rawObj client.Object) []string {
 		// Grab the object and extract the owner.
 		ds := rawObj.(*appv1.DaemonSet)
 

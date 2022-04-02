@@ -28,12 +28,6 @@ import (
 const (
 	onlyWatchResWithLabel = "goharbor.io/cert-injection"
 	labelValue            = "enabled"
-
-	// JobOwnerKey is the field key of object owner.
-	JobOwnerKey = ".metadata.controller"
-
-	// LastModification is the key of annotation for keeping the last modification of CertInjection.
-	LastModification = "goharbor.io/last-modification"
 )
 
 // GVK of an owner object.
@@ -53,7 +47,7 @@ func WithExpectedLabel(obj client.Object) bool {
 }
 
 // SetupCertInjectionIndex set up index cache for CertInjection.
-func SetupCertInjectionIndex(mgr ctrl.Manager, gvk *GVK) error {
+func SetupCertInjectionIndex(mgr ctrl.Manager, indexKey string, gvk *GVK) error {
 	if mgr == nil {
 		return errs.New("nil ctrl manager")
 	}
@@ -62,7 +56,7 @@ func SetupCertInjectionIndex(mgr ctrl.Manager, gvk *GVK) error {
 		return errs.New("missing GVK")
 	}
 
-	return mgr.GetFieldIndexer().IndexField(context.Background(), &v1alpha1.CertInjection{}, JobOwnerKey, func(rawObj client.Object) []string {
+	return mgr.GetFieldIndexer().IndexField(context.Background(), &v1alpha1.CertInjection{}, indexKey, func(rawObj client.Object) []string {
 		// Grab the object and extract the owner.
 		ci := rawObj.(*v1alpha1.CertInjection)
 

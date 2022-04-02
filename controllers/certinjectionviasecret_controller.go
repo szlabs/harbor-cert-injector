@@ -32,6 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	srIndexKey = ".metadata.controller.sr"
+)
+
 // CertInjectionViaSecretReconciler reconciles a CertInjectionViaSecret object
 type CertInjectionViaSecretReconciler struct {
 	client.Client
@@ -54,6 +58,7 @@ func (r *CertInjectionViaSecretReconciler) Reconcile(ctx context.Context, req ct
 		UseClient(r.Client).
 		WithLogger(logger).
 		WithScheme(r.Scheme).
+		UseIndexKey(srIndexKey).
 		Reconciler()
 
 	// Do reconcile.
@@ -77,7 +82,7 @@ func (r *CertInjectionViaSecretReconciler) SetupWithManager(mgr ctrl.Manager) er
 	r.Scheme = mgr.GetScheme()
 
 	// Setup index.
-	if err := controller.SetupCertInjectionIndex(mgr, &controller.GVK{
+	if err := controller.SetupCertInjectionIndex(mgr, srIndexKey, &controller.GVK{
 		APIVersion: corev1.SchemeGroupVersion.String(),
 		Kind:       mytypes.Secret,
 	}); err != nil {

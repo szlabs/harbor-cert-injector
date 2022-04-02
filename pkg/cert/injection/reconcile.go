@@ -22,7 +22,6 @@ import (
 	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
 	"github.com/szlabs/harbor-cert-injector/pkg/cert/extractor"
 	"github.com/szlabs/harbor-cert-injector/pkg/cert/secret"
-	"github.com/szlabs/harbor-cert-injector/pkg/controller"
 	"github.com/szlabs/harbor-cert-injector/pkg/errs"
 	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
 
@@ -60,6 +59,8 @@ type ReconcilerBuilder interface {
 	WithLogger(logger logr.Logger) ReconcilerBuilder
 	// UseClient sets client.
 	UseClient(client client.Client) ReconcilerBuilder
+	// UseIndexKey specifies the index key.
+	UseIndexKey(key string) ReconcilerBuilder
 	// Reconciler returns the ready Reconciler.
 	Reconciler() Reconciler
 }
@@ -69,6 +70,7 @@ type commonController struct {
 	scheme    *runtime.Scheme
 	logger    logr.Logger
 	secretMgr secret.Manager
+	indexKey  string
 }
 
 // NewBuilder news a common reconciler builder.
@@ -111,7 +113,7 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 
 	// Check if there has already been an underlying owning cert injection CR.
 	var ciList v1alpha1.CertInjectionList
-	if err := cc.List(ctx, &ciList, client.InNamespace(name.Namespace), client.MatchingFields{controller.JobOwnerKey: name.Name}); err != nil {
+	if err := cc.List(ctx, &ciList, client.InNamespace(name.Namespace), client.MatchingFields{cc.indexKey: name.Name}); err != nil {
 		return errs.Wrap("unable to list underlying cert injections", err)
 	}
 
@@ -196,6 +198,15 @@ func (cc *commonController) UseClient(client client.Client) ReconcilerBuilder {
 	return cc
 }
 
+// UseIndexKey implements ReconcilerBuilder.
+func (cc *commonController) UseIndexKey(key string) ReconcilerBuilder {
+	if len(key) > 0 {
+		cc.indexKey = key
+	}
+
+	return cc
+}
+
 // Reconciler implements ReconcilerBuilder.
 func (cc *commonController) Reconciler() Reconciler {
 	if cc.secretMgr == nil {
@@ -218,6 +229,10 @@ func (cc *commonController) validate() error {
 
 	if cc.secretMgr == nil {
 		return errs.New("missing secret manager")
+	}
+
+	if cc.indexKey == "" {
+		return errs.New("missing index key")
 	}
 
 	return nil

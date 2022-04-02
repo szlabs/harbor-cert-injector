@@ -32,6 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	hcIndexKey = ".metadata.controller.hc"
+)
+
 // CertInjectionForClusterReconciler reconciles a CertInjectionForCluster object
 type CertInjectionForClusterReconciler struct {
 	client.Client
@@ -54,6 +58,7 @@ func (r *CertInjectionForClusterReconciler) Reconcile(ctx context.Context, req c
 		UseClient(r.Client).
 		WithLogger(logger).
 		WithScheme(r.Scheme).
+		UseIndexKey(hcIndexKey).
 		Reconciler()
 
 	// Do reconcile.
@@ -78,7 +83,7 @@ func (r *CertInjectionForClusterReconciler) SetupWithManager(mgr ctrl.Manager) e
 	r.Scheme = mgr.GetScheme()
 
 	// Setup index.
-	if err := controller.SetupCertInjectionIndex(mgr, &controller.GVK{
+	if err := controller.SetupCertInjectionIndex(mgr, hcIndexKey, &controller.GVK{
 		APIVersion: goharborv1beta1.GroupVersion.String(),
 		Kind:       mytypes.HarborCluster,
 	}); err != nil {
