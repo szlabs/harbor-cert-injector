@@ -74,3 +74,7 @@ vars:
 #    kind: Service
 #    version: v1
 #    name: webhook-service
+images:
+  - name: controller:latest
+    newName: ghcr.io/szlabs/cert-injector-controller
+    newTag: v0.1.0
