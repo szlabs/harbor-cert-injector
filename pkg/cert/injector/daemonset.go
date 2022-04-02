@@ -33,11 +33,13 @@ import (
 )
 
 const (
-	injectorImage       = "ghcr.io/szlabs/cert-injector:v0.1"
-	containerdCertsPath = "/etc/containerd/certs.d"
-	containerdTomlPath  = "/etc/containerd/config.toml"
-	etcContainerd       = "/etc/containerd"
+	injectorImage       = "ghcr.io/szlabs/busybox:v0.0.0-20220402"
+	compatibleCertsPath = "/etc/docker/certs.d"
+	caMountPath         = "/tmp"
 	dsNamePrefix        = "cert-injection-ds"
+	// Containerd also supports Docker's Certificate File Pattern.
+	// Check details here: https://github.com/containerd/containerd/blob/main/docs/hosts.md#support-for-dockers-certificate-file-pattern
+	cmdArgPattern = `cp %s/ca-cert /etc/docker/certs.d/%s/ca.crt && exec tail -f /dev/null`
 )
 
 var terminationGracePeriodSeconds int64 = 30
@@ -147,30 +149,30 @@ func (p *provider) DesiredInjector(injection *v1alpha1.CertInjection) *appv1.Dae
 							Name:  "cert-injector",
 							Image: injectorImage,
 							Command: []string{
-								"inject",
+								"sh",
 							},
 							Args: []string{
-								"-r",
-								injection.Spec.ExternalDNS,
+								"-c",
+								cmdArg(injection.Spec.ExternalDNS),
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
-									Name:      "etc-containerd",
-									MountPath: etcContainerd,
+									Name:      "compatible-certs-path",
+									MountPath: registryCertPath(injection.Spec.ExternalDNS),
 								},
 								{
 									Name:      "ca-cert",
-									MountPath: "/tmp",
+									MountPath: caMountPath,
 								},
 							},
 						},
 					},
 					Volumes: []corev1.Volume{
 						{
-							Name: "etc-containerd",
+							Name: "compatible-certs-path",
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: etcContainerd,
+									Path: registryCertPath(injection.Spec.ExternalDNS),
 								},
 							},
 						},
@@ -192,4 +194,12 @@ func (p *provider) DesiredInjector(injection *v1alpha1.CertInjection) *appv1.Dae
 
 func dsName(name string) string {
 	return fmt.Sprintf("%s-%s", dsNamePrefix, name)
+}
+
+func registryCertPath(externalDNS string) string {
+	return fmt.Sprintf("%s/%s", compatibleCertsPath, externalDNS)
+}
+
+func cmdArg(externalDNS string) string {
+	return fmt.Sprintf(cmdArgPattern, caMountPath, externalDNS)
 }

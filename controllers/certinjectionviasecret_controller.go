@@ -60,7 +60,11 @@ func (r *CertInjectionViaSecretReconciler) Reconcile(ctx context.Context, req ct
 	if err := reconciler.Reconcile(ctx, req.NamespacedName, func() client.Object {
 		return &corev1.Secret{}
 	}); err != nil {
-		return ctrl.Result{}, err
+		if !errs.IsTLSNotEnabledError(err) {
+			return ctrl.Result{}, err
+		}
+
+		logger.Info("Skip reconcile", "cause", err)
 	}
 
 	logger.Info("Reconcile loop completed")

@@ -60,7 +60,11 @@ func (r *CertInjectionForPackageReconciler) Reconcile(ctx context.Context, req c
 	if err := reconciler.Reconcile(ctx, req.NamespacedName, func() client.Object {
 		return &packagev1alpha1.PackageInstall{}
 	}); err != nil {
-		return ctrl.Result{}, err
+		if !errs.IsTLSNotEnabledError(err) {
+			return ctrl.Result{}, err
+		}
+
+		logger.Info("Skip reconcile", "cause", err)
 	}
 
 	logger.Info("Reconcile loop completed")

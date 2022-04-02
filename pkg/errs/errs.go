@@ -14,7 +14,13 @@
 
 package errs
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+// TLSNotEnabledError ...
+var TLSNotEnabledError = New("No need to inject CA as TLS is not enabled")
 
 // New error
 func New(message string) error {
@@ -22,11 +28,16 @@ func New(message string) error {
 }
 
 // Errorf return an error with a specified format.
-func Errorf(format string, err error) error {
-	return fmt.Errorf(format, err)
+func Errorf(format string, fields ...interface{}) error {
+	return fmt.Errorf(format, fields...)
 }
 
 // Wrap error with extra message.
 func Wrap(message string, err error) error {
 	return fmt.Errorf("%w:%s", err, message)
+}
+
+// IsTLSNotEnabledError checks if the error is TLSNotEnabledError.
+func IsTLSNotEnabledError(err error) bool {
+	return errors.Is(err, TLSNotEnabledError)
 }
