@@ -134,24 +134,24 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 	// If injection has no changes, no changes will be applied to the existing secret.
 	secretRef, err := cc.secretMgr.CreateOrUpdate(ctx, certInjection, injection)
 	if err != nil {
-		return errs.Wrap("create or update CA secret error", err)
+		return errs.Wrap("CA secret manager error", err)
 	}
 
-	// Secret has been changed (create or updated).
+	// Secret has been changed (created or updated).
 	if secretRef.Name != "" {
 		isCreate := certInjection.Spec.ExternalDNS == ""
 
 		// Set the spec.
 		certInjection.Spec.ExternalDNS = injection.ExternalDNS
 		certInjection.Spec.CertSecret = secretRef
+		// Update the last-update timestamp.
+		certInjection.Annotations[mytypes.LastUpdateTimestampAnnotationKey] = metav1.NowMicro().String()
 
 		// Update the status condition.
 		for _, c := range certInjection.Status.Conditions {
 			cp := &c
 			if cp.Type == mytypes.ConditionCAReady && cp.Status == corev1.ConditionFalse {
 				cp.Status = corev1.ConditionTrue
-				cp.Message = "Harbor CA data has been extracted from the cert source resource"
-
 				break
 			}
 		}
@@ -160,6 +160,11 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 		if isCreate {
 			if err := cc.Create(ctx, certInjection); err != nil {
 				return errs.Wrap("create cert injection CR error", err)
+			}
+
+			// Set owner reference to the created CA secret.
+			if err := cc.secretMgr.AssignOwner(ctx, certInjection, secretRef); err != nil {
+				return errs.Wrap("assign owner to secret error", err)
 			}
 
 			return nil
@@ -252,6 +257,9 @@ func (cc *commonController) createCertInjectionCR(target client.Object) (*v1alph
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: targetREF.Namespace,
 			Name:      caInjectionName(targetREF.Name),
+			Annotations: map[string]string{
+				mytypes.LastUpdateTimestampAnnotationKey: metav1.NowMicro().String(),
+			},
 		},
 		Spec: v1alpha1.CertInjectionSpec{},
 		Status: v1alpha1.CertInjectionStatus{

@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
 	"github.com/szlabs/harbor-cert-injector/pkg/cert/injector"
@@ -26,6 +25,7 @@ import (
 	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
 
 	appv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -54,7 +54,7 @@ type CertInjectionReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
-func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, e error) {
 	logger := log.FromContext(ctx)
 	logger.WithValues("cert injection", req.NamespacedName)
 
@@ -69,18 +69,63 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
+	// Check whether the secret containing the CA content has been ready.
+	caSecret := &corev1.Secret{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Namespace: req.Namespace,
+		Name:      certInjection.Spec.CertSecret.Name,
+	}, caSecret); err != nil {
+		logger.Error(err, "get CA cert secret error")
+		return ctrl.Result{}, err
+	}
+
 	// Check the existence of the underlying daemon set.
 	dsList := &appv1.DaemonSetList{}
 	if err := r.List(ctx, dsList, client.InNamespace(req.Namespace), client.MatchingFields{indexKey: req.Name}); err != nil {
+		logger.Error(err, "list the underlying daemonset resources")
 		return ctrl.Result{}, err
 	}
+
+	// Add defer to update the status
+	defer func() {
+		st := corev1.ConditionTrue
+		if e != nil {
+			st = corev1.ConditionFalse
+		}
+
+		found, updated := false, false
+		for _, c := range certInjection.Status.Conditions {
+			if c.Type == mytypes.ConditionReady {
+				found = true
+				if c.Status != st {
+					c.Status = st
+					updated = true
+				}
+			}
+		}
+
+		if !found {
+			certInjection.Status.Conditions = append(certInjection.Status.Conditions, v1alpha1.CertInjectionCondition{
+				Type:   mytypes.ConditionReady,
+				Status: st,
+			})
+		}
+
+		if !found || updated {
+			if err := r.Status().Update(ctx, certInjection); err != nil {
+				logger.Error(err, "update status error")
+				return
+			}
+		}
+	}()
 
 	ijp := injector.NewDaemonSetProvider(r.Client, r.Scheme)
 	if len(dsList.Items) == 0 {
 		logger.Info("underlying daemonset not found")
 
-		// Not found.
+		// Not found then create.
 		if err := ijp.Inject(ctx, certInjection); err != nil {
+			logger.Error(err, "inject CA cert error")
 			return ctrl.Result{}, err
 		}
 	} else {
@@ -97,6 +142,7 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			ds.Annotations[mytypes.InjectionVersionAnnotationKey] = newInjectionV
 
 			if err := r.Update(ctx, ds); err != nil {
+				logger.Error(err, "update the underlying daemonset")
 				return ctrl.Result{}, err
 			}
 		}
@@ -136,13 +182,6 @@ func (r *CertInjectionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.CertInjection{}).
 		Owns(&appv1.DaemonSet{}).
 		Complete(r)
-}
-
-func nameDS(nsn types.NamespacedName) types.NamespacedName {
-	return types.NamespacedName{
-		Name:      fmt.Sprintf("cjds-%s", nsn.Name),
-		Namespace: nsn.Namespace,
-	}
 }
 
 func init() {

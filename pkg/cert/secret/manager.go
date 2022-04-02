@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
 	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
 	"github.com/szlabs/harbor-cert-injector/pkg/errs"
 	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
@@ -29,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -41,6 +42,9 @@ type Manager interface {
 	// CreateOrUpdate creates or updates the secret containing the CA data.
 	// Secret local reference is returned.
 	CreateOrUpdate(ctx context.Context, owner *v1alpha1.CertInjection, injection *mytypes.Injection) (corev1.LocalObjectReference, error)
+
+	// AssignOwner set the owner reference of the secret.
+	AssignOwner(ctx context.Context, owner *v1alpha1.CertInjection, secret corev1.LocalObjectReference) error
 }
 
 // NewManager news a secret creator.
@@ -81,6 +85,33 @@ func (dc *defaultCreator) CreateOrUpdate(ctx context.Context, owner *v1alpha1.Ce
 	return corev1.LocalObjectReference{}, nil
 }
 
+// AssignOwner implements Manager.
+func (dc *defaultCreator) AssignOwner(ctx context.Context, owner *v1alpha1.CertInjection, secret corev1.LocalObjectReference) error {
+	if owner == nil {
+		return errs.New("missing owner to assign")
+	}
+
+	if secret.Name == "" {
+		return errs.New("missing secret to assign owner")
+	}
+
+	// Retrieve secret first.
+	obj := &corev1.Secret{}
+	if err := dc.Get(ctx, types.NamespacedName{}, obj); err != nil {
+		return errs.Wrap("get secret by local ref", err)
+	}
+
+	if err := controllerutil.SetControllerReference(owner, obj, dc.scheme); err != nil {
+		return errs.Wrap("set controller reference error", err)
+	}
+
+	if err := dc.Update(ctx, obj); err != nil {
+		return errs.Wrap("update owner reference of secret obj", err)
+	}
+
+	return nil
+}
+
 func (dc *defaultCreator) get(ctx context.Context, id types.NamespacedName) (*corev1.Secret, error) {
 	secretObj := &corev1.Secret{}
 	if err := dc.Get(ctx, id, secretObj); err != nil {
@@ -110,10 +141,6 @@ func (dc *defaultCreator) create(ctx context.Context, owner *v1alpha1.CertInject
 		Data: map[string][]byte{
 			mytypes.CAKeyInSecret: injection.CACert,
 		},
-	}
-
-	if err := controllerutil.SetOwnerReference(owner, secretObj, dc.scheme); err != nil {
-		return corev1.LocalObjectReference{}, errs.Wrap("set owner reference for created CA secret", err)
 	}
 
 	if err := dc.Create(ctx, secretObj); err != nil {

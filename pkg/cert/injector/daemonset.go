@@ -92,17 +92,11 @@ func (p *provider) Inject(ctx context.Context, injection *v1alpha1.CertInjection
 	}
 
 	injection.Status.Injector = objRef
-	conditions := []v1alpha1.CertInjectionCondition{
-		{
-			Type:    mytypes.ConditionInjector,
-			Status:  corev1.ConditionTrue,
-			Message: "Injector has been created",
-		}, {
-			Type:   mytypes.ConditionReady,
-			Status: corev1.ConditionTrue,
-		},
-	}
-	injection.Status.Conditions = append(injection.Status.Conditions, conditions...)
+	injection.Status.Conditions = append(injection.Status.Conditions, v1alpha1.CertInjectionCondition{
+		Type:    mytypes.ConditionInjector,
+		Status:  corev1.ConditionTrue,
+		Message: "Injector has been created",
+	})
 	if err := p.Status().Update(ctx, injection); err != nil {
 		return errs.Wrap("update status of cert injection error", err)
 	}

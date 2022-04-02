@@ -22,6 +22,8 @@ const (
 	OwnerAnnotationKey = "registry.goharbor.io/uri"
 	// InjectionVersionAnnotationKey ...
 	InjectionVersionAnnotationKey = "injection.goharbor.io/version"
+	// LastUpdateTimestampAnnotationKey ...
+	LastUpdateTimestampAnnotationKey = "goharbor.io/last-updated"
 
 	// HarborCluster kind.
 	HarborCluster = "HarborCluster"
@@ -36,7 +38,7 @@ const (
 	// ConditionInjector ...
 	ConditionInjector = "Injector Ready"
 	// ConditionCAReady ...
-	ConditionCAReady = "CA Ready"
+	ConditionCAReady = "CA Secret Ready"
 )
 
 // Injection includes the related info extracted from the certificate source and
