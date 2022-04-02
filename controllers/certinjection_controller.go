@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	indexKey = ".metadata.controller"
+	indexKey = "ci.metadata.controller"
 )
 
 // CertInjectionReconciler reconciles a CertInjection object
