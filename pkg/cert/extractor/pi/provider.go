@@ -29,10 +29,10 @@ import (
 )
 
 const (
-	appCatalogSecretRefKey = "inline-values"
-	secretDataKey          = appCatalogSecretRefKey
-	caDataKey              = "ca.crt"
-	appCatalogCaSecretName = "harbor-ca-key-pair"
+	appCatalogSecretRefKey  = "inline-values"
+	tkgPackageSecretRefName = "harbor-default-values"
+	caDataKey               = "ca.crt"
+	appCatalogCaSecretName  = "harbor-ca-key-pair"
 )
 
 type packageValues struct {
@@ -58,36 +58,98 @@ func (p *Provider) Extract(ctx context.Context, obj client.Object) (*mytypes.Inj
 		return nil, errs.New("expect v1alph1.PackageInstall object")
 	}
 
-	// Find the configuration values.
-	for _, v := range pkgInstall.Spec.Values {
-		if v.SecretRef.Key == appCatalogSecretRefKey {
-			p.getValuesFromSecret(ctx, types.NamespacedName{
-				Name:      v.SecretRef.Name,
-				Namespace: pkgInstall.Namespace,
-			})
-		}
+	// Find the name of the secret that contains the configuration values.
+	secretRef := getValueSecret(pkgInstall)
+	// Get the configuration values
+	pvs, err := p.getValuesFromSecret(ctx, *secretRef)
+	if err != nil {
+		return nil, errs.Wrap("failed to get configuration values from the secret", err)
 	}
 
-	return nil, nil
+	// There are three ways to set the CA cert, check it one by one.
+	// Set in the `tlsCertificate` field.
+	if pvs.TLSCertificate != nil && len(pvs.TLSCertificate.CACert) > 0 {
+		return &mytypes.Injection{
+			ExternalDNS: pvs.HostName,
+			CACert:      []byte(pvs.TLSCertificate.CACert),
+		}, nil
+	}
+
+	// Set with a separate secret,
+	// or inject into a fixed secret by the cert-manager.
+	caSecretRef := appCatalogCaSecretName
+	if pvs.TLSCertificateSecretName != nil {
+		caSecretRef = *pvs.TLSCertificateSecretName
+	}
+
+	CAContent, err := p.extractCAFromSecret(ctx, types.NamespacedName{
+		Name:      caSecretRef,
+		Namespace: pvs.Namespace,
+	})
+
+	if err != nil {
+		return nil, errs.Wrap("failed to extract CA from the specified secret", err)
+	}
+
+	return &mytypes.Injection{
+		ExternalDNS: pvs.HostName,
+		CACert:      CAContent,
+	}, nil
 }
 
-func (p *Provider) getValuesFromSecret(ctx context.Context, secret types.NamespacedName) error {
+func (p *Provider) getValuesFromSecret(ctx context.Context, secret types.NamespacedName) (*packageValues, error) {
 	vSecret := &corev1.Secret{}
 	if err := p.Get(ctx, secret, vSecret); err != nil {
-		return errs.Wrap("get values from secret error", err)
+		return nil, errs.Wrap("failed to get the values secret object", err)
 	}
 
 	var decodedV []byte
-	if encodedV, ok := vSecret.Data[secretDataKey]; ok {
+	// There will be only 1 field.
+	// Because the TKG package and TMC app catalog use different key and the key in TKG package is not fixed,
+	// then we just get the first and only field.
+	for _, encodedV := range vSecret.Data {
 		if _, err := base64.StdEncoding.Decode(decodedV, encodedV); err != nil {
-			return errs.Wrap("decode secret values error", err)
+			return nil, errs.Wrap("failed to decode the base64 encoded configuration values", err)
 		}
+
+		break
 	}
 
-	if len(decodedV) > 0 {
-		pvs := &packageValues{}
-		if err := json.Unmarshal(decodedV, pvs); err != nil {
-			return errs.Wrap("unmarshal secret values error", err)
+	// Unmarshal the required data.
+	pvs := &packageValues{}
+	if err := json.Unmarshal(decodedV, pvs); err != nil {
+		return nil, errs.Wrap("failed to unmarshal configuration values", err)
+	}
+
+	return pvs, nil
+}
+
+func (p *Provider) extractCAFromSecret(ctx context.Context, secretRef types.NamespacedName) ([]byte, error) {
+	caSecret := &corev1.Secret{}
+	if err := p.Get(ctx, secretRef, caSecret); err != nil {
+		return nil, errs.Wrap("failed to get the CA secret object", err)
+	}
+
+	var decodedV []byte
+	if encodedV, ok := caSecret.Data[caDataKey]; ok {
+		if _, err := base64.StdEncoding.Decode(decodedV, encodedV); err != nil {
+			return nil, errs.Wrap("failed to decode the base64 encoded CA content", err)
+		}
+
+		return decodedV, nil
+	}
+
+	return nil, errs.Errorf("missing %s in the secret data", caDataKey)
+}
+
+func getValueSecret(pkgInstall *packagev1alpha1.PackageInstall) *types.NamespacedName {
+	for _, v := range pkgInstall.Spec.Values {
+		if v.SecretRef.Key == appCatalogSecretRefKey ||
+			v.SecretRef.Name == tkgPackageSecretRefName {
+			return &types.NamespacedName{
+				Name:      v.SecretRef.Name,
+				Namespace: pkgInstall.Namespace,
+			}
 		}
 	}
 

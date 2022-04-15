@@ -88,7 +88,7 @@ func main() {
 		fatal(err, "unable to start manager")
 	}
 
-	if err = controller.SetupControllers(mgr); err != nil {
+	if err = controller.SetupControllers(mgr, setupLog); err != nil {
 		fatal(err, "unable to set up controllers")
 	}
 

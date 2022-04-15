@@ -18,6 +18,8 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/go-logr/logr"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -40,14 +42,16 @@ func AddToControllerList(c Controller) {
 }
 
 // SetupControllers sets up all the registered controllers.
-func SetupControllers(mgr ctrl.Manager) error {
+func SetupControllers(mgr ctrl.Manager, logger logr.Logger) error {
 	var err error
 
-	controllers.Range(func(_, v interface{}) bool {
+	controllers.Range(func(k, v interface{}) bool {
 		if c, ok := v.(Controller); ok {
 			if err = c.SetupWithManager(mgr); err != nil {
 				return false
 			}
+
+			logger.Info("Set up with controller manager", "controller", k)
 		}
 
 		return true
