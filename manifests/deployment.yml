@@ -506,7 +506,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/szlabs/cert-injector-controller:v0.1.0
+        image: ghcr.io/szlabs/cert-injector-controller:latest
         livenessProbe:
           httpGet:
             path: /healthz
