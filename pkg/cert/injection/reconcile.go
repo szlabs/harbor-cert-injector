@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/szlabs/harbor-cert-injector/pkg/controller"
+
 	"github.com/go-logr/logr"
 	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
 	"github.com/szlabs/harbor-cert-injector/pkg/cert/extractor"
@@ -102,8 +104,8 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 	}
 
 	// Extract cert injection data from the target object for latter usage.
-	GVK := target.GetObjectKind().GroupVersionKind().String()
-	injection, err := extractor.Providers(cc.Client).Get(GVK).Extract(ctx, target)
+	GVK := target.GetObjectKind().GroupVersionKind()
+	injection, err := extractor.Providers(cc.Client).Get(GVK.String()).Extract(ctx, target)
 	if err != nil {
 		return errs.Wrap("extract cert data error", err)
 	}
@@ -111,7 +113,7 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 	// Check if there has already been an underlying owning cert injection CR.
 	var ciList v1alpha1.CertInjectionList
 	if err := cc.List(ctx, &ciList, client.InNamespace(name.Namespace), client.MatchingLabels{
-		mytypes.OwnerGVKLabel:  GVK,
+		mytypes.OwnerGVKLabel:  controller.FormatGVKToLabelValue(GVK),
 		mytypes.OwnerNameLabel: target.GetName(),
 	}); err != nil {
 		return errs.Wrap("unable to list underlying cert injections", err)
@@ -248,7 +250,7 @@ func (cc *commonController) createCertInjectionCR(target client.Object) (*v1alph
 				mytypes.LastUpdateTimestampAnnotationKey: metav1.NowMicro().String(),
 			},
 			Labels: map[string]string{
-				mytypes.OwnerGVKLabel:  target.GetObjectKind().GroupVersionKind().String(),
+				mytypes.OwnerGVKLabel:  controller.FormatGVKToLabelValue(target.GetObjectKind().GroupVersionKind()),
 				mytypes.OwnerNameLabel: target.GetName(),
 			},
 		},

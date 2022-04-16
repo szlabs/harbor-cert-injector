@@ -15,26 +15,16 @@
 package controller
 
 import (
-	"context"
+	"fmt"
 
-	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/szlabs/harbor-cert-injector/pkg/errs"
 )
 
 const (
 	onlyWatchResWithLabel = "goharbor.io/cert-injection"
 	labelValue            = "enabled"
 )
-
-// GVK of an owner object.
-type GVK struct {
-	APIVersion string
-	Kind       string
-}
 
 // WithExpectedLabel assure the expected label (with value) is existing.
 func WithExpectedLabel(obj client.Object) bool {
@@ -46,30 +36,7 @@ func WithExpectedLabel(obj client.Object) bool {
 	return ok && v == labelValue
 }
 
-// SetupCertInjectionIndex set up index cache for CertInjection.
-func SetupCertInjectionIndex(mgr ctrl.Manager, indexKey string, gvk *GVK) error {
-	if mgr == nil {
-		return errs.New("nil ctrl manager")
-	}
-
-	if gvk == nil {
-		return errs.New("missing GVK")
-	}
-
-	return mgr.GetFieldIndexer().IndexField(context.Background(), &v1alpha1.CertInjection{}, indexKey, func(rawObj client.Object) []string {
-		// Grab the object and extract the owner.
-		ci := rawObj.(*v1alpha1.CertInjection)
-
-		owner := metav1.GetControllerOf(ci)
-		if owner == nil {
-			return nil
-		}
-
-		if owner.APIVersion != gvk.APIVersion || owner.Kind != gvk.Kind {
-			return nil
-		}
-
-		// And if so, return it.
-		return []string{owner.Name}
-	})
+// FormatGVKToLabelValue format the GVK as a valid label value.
+func FormatGVKToLabelValue(GVK schema.GroupVersionKind) string {
+	return fmt.Sprintf("%s_%s_%s", GVK.Group, GVK.Version, GVK.Kind)
 }

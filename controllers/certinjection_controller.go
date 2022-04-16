@@ -77,7 +77,7 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Check the existence of the underlying daemon set.
 	dsList := &appv1.DaemonSetList{}
 	if err := r.List(ctx, dsList, client.InNamespace(req.Namespace), client.MatchingLabels{
-		mytypes.OwnerGVKLabel:  certInjection.GetObjectKind().GroupVersionKind().String(),
+		mytypes.OwnerGVKLabel:  controller.FormatGVKToLabelValue(certInjection.GetObjectKind().GroupVersionKind()),
 		mytypes.OwnerNameLabel: certInjection.GetName(),
 	}); err != nil {
 		logger.Error(err, "list the underlying ds resources")

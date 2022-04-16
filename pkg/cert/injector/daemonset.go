@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/szlabs/harbor-cert-injector/pkg/controller"
+
 	"github.com/szlabs/harbor-cert-injector/api/v1alpha1"
 	"github.com/szlabs/harbor-cert-injector/pkg/errs"
 	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
@@ -110,7 +112,7 @@ func (p *provider) DesiredInjector(injection *v1alpha1.CertInjection) *appv1.Dae
 			Namespace: injection.Namespace,
 			Labels: map[string]string{
 				"k8s-app":              "cert-auto-injector",
-				mytypes.OwnerGVKLabel:  injection.GetObjectKind().GroupVersionKind().String(),
+				mytypes.OwnerGVKLabel:  controller.FormatGVKToLabelValue(injection.GetObjectKind().GroupVersionKind()),
 				mytypes.OwnerNameLabel: injection.GetName(),
 			},
 			Annotations: map[string]string{
