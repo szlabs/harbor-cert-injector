@@ -123,7 +123,7 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 	if len(ciList.Items) != 0 {
 		certInjection = &ciList.Items[0]
 	} else {
-		cc.logger.Info("create new as underlying cert injection not found")
+		cc.logger.Info("Create new as underlying cert injection not found")
 		// Not found and create a new CR.
 		cij, err := cc.createCertInjectionCR(target)
 		if err != nil {
@@ -139,6 +139,8 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 	if err != nil {
 		return errs.Wrap("CA secret manager error", err)
 	}
+
+	cc.logger.V(5).Info("Handle CA secret", "secret reference", secretRef)
 
 	// Secret has been changed (created or updated).
 	if secretRef.Name != "" {

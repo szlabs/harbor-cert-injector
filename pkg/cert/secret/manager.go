@@ -17,6 +17,7 @@ package secret
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -76,8 +77,14 @@ func (dc *defaultCreator) CreateOrUpdate(ctx context.Context, owner *v1alpha1.Ce
 	}
 
 	// Has changes?
+	var decodedBytes []byte
+	encodedCABytes := secretObj.Data[mytypes.CAKeyInSecret]
+	if _, err := base64.StdEncoding.Decode(decodedBytes, encodedCABytes); err != nil {
+		return corev1.LocalObjectReference{}, errs.Wrap("failed to decode CA content", err)
+	}
+
 	savedDNS := secretObj.GetAnnotations()[mytypes.OwnerAnnotationKey]
-	if savedDNS != injection.ExternalDNS || !bytes.Equal(secretObj.Data[mytypes.CAKeyInSecret], injection.CACert) {
+	if savedDNS != injection.ExternalDNS || !bytes.Equal(decodedBytes, injection.CACert) {
 		return dc.update(ctx, secretObj, injection)
 	}
 
@@ -122,7 +129,7 @@ func (dc *defaultCreator) get(ctx context.Context, id types.NamespacedName) (*co
 			return nil, nil
 		}
 
-		return nil, errs.Wrap("get CA secret object error", err)
+		return nil, errs.Wrap("failed to get CA secret object", err)
 	}
 
 	return secretObj, nil
