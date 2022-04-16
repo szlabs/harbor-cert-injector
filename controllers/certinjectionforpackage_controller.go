@@ -28,12 +28,7 @@ import (
 	"github.com/szlabs/harbor-cert-injector/pkg/cert/injection"
 	"github.com/szlabs/harbor-cert-injector/pkg/controller"
 	"github.com/szlabs/harbor-cert-injector/pkg/errs"
-	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
 	packagev1alpha1 "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/packaging/v1alpha1"
-)
-
-const (
-	piIndexKey = ".metadata.controller.pi"
 )
 
 // CertInjectionForPackageReconciler reconciles a kapp PackageInstall object
@@ -58,7 +53,6 @@ func (r *CertInjectionForPackageReconciler) Reconcile(ctx context.Context, req c
 		UseClient(r.Client).
 		WithLogger(logger).
 		WithScheme(r.Scheme).
-		UseIndexKey(piIndexKey).
 		Reconciler()
 
 	// Do reconcile.
@@ -80,14 +74,6 @@ func (r *CertInjectionForPackageReconciler) Reconcile(ctx context.Context, req c
 func (r *CertInjectionForPackageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
-
-	// Setup index.
-	if err := controller.SetupCertInjectionIndex(mgr, piIndexKey, &controller.GVK{
-		APIVersion: packagev1alpha1.SchemeGroupVersion.String(),
-		Kind:       mytypes.PackageInstall,
-	}); err != nil {
-		return errs.Wrap("failed to set up index", err)
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&packagev1alpha1.PackageInstall{}, controller.WithExpectedLabelPredicates()).

@@ -23,17 +23,11 @@ import (
 	"github.com/szlabs/harbor-cert-injector/pkg/cert/injection"
 	"github.com/szlabs/harbor-cert-injector/pkg/controller"
 	"github.com/szlabs/harbor-cert-injector/pkg/errs"
-	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-)
-
-const (
-	srIndexKey = ".metadata.controller.sr"
 )
 
 // CertInjectionViaSecretReconciler reconciles a CertInjectionViaSecret object
@@ -60,7 +54,6 @@ func (r *CertInjectionViaSecretReconciler) Reconcile(ctx context.Context, req ct
 		UseClient(r.Client).
 		WithLogger(logger).
 		WithScheme(r.Scheme).
-		UseIndexKey(srIndexKey).
 		Reconciler()
 
 	// Do reconcile.
@@ -82,14 +75,6 @@ func (r *CertInjectionViaSecretReconciler) Reconcile(ctx context.Context, req ct
 func (r *CertInjectionViaSecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
-
-	// Setup index.
-	if err := controller.SetupCertInjectionIndex(mgr, srIndexKey, &controller.GVK{
-		APIVersion: corev1.SchemeGroupVersion.String(),
-		Kind:       mytypes.Secret,
-	}); err != nil {
-		return errs.Wrap("failed to set up index", err)
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Secret{}, controller.WithExpectedLabelPredicates()).

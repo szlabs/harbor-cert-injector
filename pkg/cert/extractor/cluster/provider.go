@@ -58,7 +58,7 @@ func (p *Provider) Extract(ctx context.Context, obj client.Object) (*mytypes.Inj
 	}
 
 	return &mytypes.Injection{
-		ExternalDNS: strings.TrimPrefix("https://", harbor.Spec.ExternalURL),
+		ExternalDNS: strings.TrimPrefix(harbor.Spec.ExternalURL, "https://"),
 		CACert:      caCert.Data["ca.crt"],
 	}, nil
 }

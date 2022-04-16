@@ -25,6 +25,11 @@ const (
 	// LastUpdateTimestampAnnotationKey ...
 	LastUpdateTimestampAnnotationKey = "goharbor.io/last-updated"
 
+	// OwnerGVKLabel ...
+	OwnerGVKLabel = "owner.goharbor.io/gvk"
+	// OwnerNameLabel ...
+	OwnerNameLabel = "owner.goharbor.io/name"
+
 	// HarborCluster kind.
 	HarborCluster = "HarborCluster"
 	// PackageInstall kind.

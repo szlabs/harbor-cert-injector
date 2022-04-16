@@ -31,7 +31,6 @@ import (
 const (
 	appCatalogSecretRefKey  = "inline-values"
 	tkgPackageSecretRefName = "harbor-default-values"
-	caDataKey               = "ca.crt"
 	appCatalogCaSecretName  = "harbor-ca-key-pair"
 )
 
@@ -131,7 +130,7 @@ func (p *Provider) extractCAFromSecret(ctx context.Context, secretRef types.Name
 	}
 
 	var decodedV []byte
-	if encodedV, ok := caSecret.Data[caDataKey]; ok {
+	if encodedV, ok := caSecret.Data[mytypes.CAKeyInSecret]; ok {
 		if _, err := base64.StdEncoding.Decode(decodedV, encodedV); err != nil {
 			return nil, errs.Wrap("failed to decode the base64 encoded CA content", err)
 		}
@@ -139,7 +138,7 @@ func (p *Provider) extractCAFromSecret(ctx context.Context, secretRef types.Name
 		return decodedV, nil
 	}
 
-	return nil, errs.Errorf("missing %s in the secret data", caDataKey)
+	return nil, errs.Errorf("missing %s in the secret data", mytypes.CAKeyInSecret)
 }
 
 func getValueSecret(pkgInstall *packagev1alpha1.PackageInstall) *types.NamespacedName {

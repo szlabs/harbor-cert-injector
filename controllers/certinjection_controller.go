@@ -26,16 +26,11 @@ import (
 
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-)
-
-const (
-	indexKey = "ci.metadata.controller"
 )
 
 // CertInjectionReconciler reconciles a CertInjection object
@@ -81,8 +76,11 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Check the existence of the underlying daemon set.
 	dsList := &appv1.DaemonSetList{}
-	if err := r.List(ctx, dsList, client.InNamespace(req.Namespace), client.MatchingFields{indexKey: req.Name}); err != nil {
-		logger.Error(err, "list the underlying daemonset resources")
+	if err := r.List(ctx, dsList, client.InNamespace(req.Namespace), client.MatchingLabels{
+		mytypes.OwnerGVKLabel:  certInjection.GetObjectKind().GroupVersionKind().String(),
+		mytypes.OwnerNameLabel: certInjection.GetName(),
+	}); err != nil {
+		logger.Error(err, "list the underlying ds resources")
 		return ctrl.Result{}, err
 	}
 
@@ -121,7 +119,7 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	ijp := injector.NewDaemonSetProvider(r.Client, r.Scheme)
 	if len(dsList.Items) == 0 {
-		logger.Info("underlying daemonset not found")
+		logger.Info("Underlying ds not found and create new")
 
 		// Not found then create.
 		if err := ijp.Inject(ctx, certInjection); err != nil {
@@ -135,14 +133,14 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		// If update is needed.
 		if oldInjectionV != newInjectionV {
-			logger.Info("resource version changes found", "old", oldInjectionV, "new", newInjectionV)
+			logger.Info("Cert injection resource version changes found", "old", oldInjectionV, "new", newInjectionV)
 
 			updatedDs := ijp.DesiredInjector(certInjection)
 			ds.Spec = *updatedDs.Spec.DeepCopy()
 			ds.Annotations[mytypes.InjectionVersionAnnotationKey] = newInjectionV
 
 			if err := r.Update(ctx, ds); err != nil {
-				logger.Error(err, "update the underlying daemonset")
+				logger.Error(err, "update the underlying ds")
 				return ctrl.Result{}, err
 			}
 		}
@@ -156,27 +154,6 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *CertInjectionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
-
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &appv1.DaemonSet{}, indexKey, func(rawObj client.Object) []string {
-		// Grab the object and extract the owner.
-		ds := rawObj.(*appv1.DaemonSet)
-
-		owner := metav1.GetControllerOf(ds)
-		if owner == nil {
-			return nil
-		}
-
-		// Make sure it's daemon set.
-		if owner.APIVersion != appv1.SchemeGroupVersion.String() || owner.Kind != "DaemonSet" {
-			return nil
-		}
-
-		// And if so, return it.
-		return []string{owner.Name}
-
-	}); err != nil {
-		return err
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.CertInjection{}).

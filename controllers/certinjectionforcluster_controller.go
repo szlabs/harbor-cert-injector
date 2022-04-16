@@ -24,16 +24,10 @@ import (
 	"github.com/szlabs/harbor-cert-injector/pkg/cert/injection"
 	"github.com/szlabs/harbor-cert-injector/pkg/controller"
 	"github.com/szlabs/harbor-cert-injector/pkg/errs"
-	mytypes "github.com/szlabs/harbor-cert-injector/pkg/types"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-)
-
-const (
-	hcIndexKey = ".metadata.controller.hc"
 )
 
 // CertInjectionForClusterReconciler reconciles a CertInjectionForCluster object
@@ -58,7 +52,6 @@ func (r *CertInjectionForClusterReconciler) Reconcile(ctx context.Context, req c
 		UseClient(r.Client).
 		WithLogger(logger).
 		WithScheme(r.Scheme).
-		UseIndexKey(hcIndexKey).
 		Reconciler()
 
 	// Do reconcile.
@@ -81,14 +74,6 @@ func (r *CertInjectionForClusterReconciler) Reconcile(ctx context.Context, req c
 func (r *CertInjectionForClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
-
-	// Setup index.
-	if err := controller.SetupCertInjectionIndex(mgr, hcIndexKey, &controller.GVK{
-		APIVersion: goharborv1beta1.GroupVersion.String(),
-		Kind:       mytypes.HarborCluster,
-	}); err != nil {
-		return errs.Wrap("failed to set up index", err)
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&goharborv1beta1.HarborCluster{}, controller.WithExpectedLabelPredicates()).

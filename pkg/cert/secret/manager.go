@@ -97,12 +97,15 @@ func (dc *defaultCreator) AssignOwner(ctx context.Context, owner *v1alpha1.CertI
 
 	// Retrieve secret first.
 	obj := &corev1.Secret{}
-	if err := dc.Get(ctx, types.NamespacedName{}, obj); err != nil {
-		return errs.Wrap("get secret by local ref", err)
+	if err := dc.Get(ctx, types.NamespacedName{
+		Namespace: owner.Namespace,
+		Name:      secret.Name,
+	}, obj); err != nil {
+		return errs.Wrap("failed to get secret by local ref", err)
 	}
 
 	if err := controllerutil.SetControllerReference(owner, obj, dc.scheme); err != nil {
-		return errs.Wrap("set controller reference error", err)
+		return errs.Wrap("failed to set controller reference", err)
 	}
 
 	if err := dc.Update(ctx, obj); err != nil {

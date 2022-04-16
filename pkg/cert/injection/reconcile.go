@@ -59,8 +59,6 @@ type ReconcilerBuilder interface {
 	WithLogger(logger logr.Logger) ReconcilerBuilder
 	// UseClient sets client.
 	UseClient(client client.Client) ReconcilerBuilder
-	// UseIndexKey specifies the index key.
-	UseIndexKey(key string) ReconcilerBuilder
 	// Reconciler returns the ready Reconciler.
 	Reconciler() Reconciler
 }
@@ -70,7 +68,6 @@ type commonController struct {
 	scheme    *runtime.Scheme
 	logger    logr.Logger
 	secretMgr secret.Manager
-	indexKey  string
 }
 
 // NewBuilder news a common reconciler builder.
@@ -113,7 +110,10 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 
 	// Check if there has already been an underlying owning cert injection CR.
 	var ciList v1alpha1.CertInjectionList
-	if err := cc.List(ctx, &ciList, client.InNamespace(name.Namespace), client.MatchingFields{cc.indexKey: name.Name}); err != nil {
+	if err := cc.List(ctx, &ciList, client.InNamespace(name.Namespace), client.MatchingLabels{
+		mytypes.OwnerGVKLabel:  GVK,
+		mytypes.OwnerNameLabel: target.GetName(),
+	}); err != nil {
 		return errs.Wrap("unable to list underlying cert injections", err)
 	}
 
@@ -145,7 +145,7 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 		certInjection.Spec.ExternalDNS = injection.ExternalDNS
 		certInjection.Spec.CertSecret = secretRef
 		// Update the last-update timestamp.
-		certInjection.Annotations[mytypes.LastUpdateTimestampAnnotationKey] = metav1.NowMicro().String()
+		certInjection.Annotations[mytypes.LastUpdateTimestampAnnotationKey] = fmt.Sprintf("%s", metav1.NowMicro())
 
 		// Update the status condition.
 		for _, c := range certInjection.Status.Conditions {
@@ -159,12 +159,12 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 		// Need to create CertInjection CR.
 		if isCreate {
 			if err := cc.Create(ctx, certInjection); err != nil {
-				return errs.Wrap("create cert injection CR error", err)
+				return errs.Wrap("failed to create cert injection CR", err)
 			}
 
 			// Set owner reference to the created CA secret.
 			if err := cc.secretMgr.AssignOwner(ctx, certInjection, secretRef); err != nil {
-				return errs.Wrap("assign owner to secret error", err)
+				return errs.Wrap("failed to assign owner to secret", err)
 			}
 
 			return nil
@@ -203,15 +203,6 @@ func (cc *commonController) UseClient(client client.Client) ReconcilerBuilder {
 	return cc
 }
 
-// UseIndexKey implements ReconcilerBuilder.
-func (cc *commonController) UseIndexKey(key string) ReconcilerBuilder {
-	if len(key) > 0 {
-		cc.indexKey = key
-	}
-
-	return cc
-}
-
 // Reconciler implements ReconcilerBuilder.
 func (cc *commonController) Reconciler() Reconciler {
 	if cc.secretMgr == nil {
@@ -236,10 +227,6 @@ func (cc *commonController) validate() error {
 		return errs.New("missing secret manager")
 	}
 
-	if cc.indexKey == "" {
-		return errs.New("missing index key")
-	}
-
 	return nil
 }
 
@@ -259,6 +246,10 @@ func (cc *commonController) createCertInjectionCR(target client.Object) (*v1alph
 			Name:      caInjectionName(targetREF.Name),
 			Annotations: map[string]string{
 				mytypes.LastUpdateTimestampAnnotationKey: metav1.NowMicro().String(),
+			},
+			Labels: map[string]string{
+				mytypes.OwnerGVKLabel:  target.GetObjectKind().GroupVersionKind().String(),
+				mytypes.OwnerNameLabel: target.GetName(),
 			},
 		},
 		Spec: v1alpha1.CertInjectionSpec{},

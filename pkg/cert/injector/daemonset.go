@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -68,27 +67,18 @@ func (p *provider) Inject(ctx context.Context, injection *v1alpha1.CertInjection
 
 	// Set owner reference.
 	if err := controllerutil.SetOwnerReference(injection, dsCR, p.scheme); err != nil {
-		return errs.Wrap("set owner reference of ds error", err)
+		return errs.Wrap("failed to set owner reference of ds", err)
 	}
 
 	// Create the ds now.
 	if err := p.Create(ctx, dsCR); err != nil {
-		return errs.Wrap("create ds error", err)
-	}
-
-	// Get the created ds again.
-	ds := &appv1.DaemonSet{}
-	if err := p.Get(ctx, types.NamespacedName{
-		Namespace: dsCR.Namespace,
-		Name:      dsCR.Name,
-	}, ds); err != nil {
-		return errs.Wrap("get ds error", err)
+		return errs.Wrap("failed to create ds", err)
 	}
 
 	// Get the object reference.
-	objRef, err := reference.GetReference(p.scheme, ds)
+	objRef, err := reference.GetReference(p.scheme, dsCR)
 	if err != nil {
-		return errs.Wrap("get ds reference error", err)
+		return errs.Wrap("failed to get ds reference", err)
 	}
 
 	injection.Status.Injector = objRef
@@ -119,7 +109,9 @@ func (p *provider) DesiredInjector(injection *v1alpha1.CertInjection) *appv1.Dae
 			Name:      dsName(injection.Name),
 			Namespace: injection.Namespace,
 			Labels: map[string]string{
-				"k8s-app": "cert-auto-injector",
+				"k8s-app":              "cert-auto-injector",
+				mytypes.OwnerGVKLabel:  injection.GetObjectKind().GroupVersionKind().String(),
+				mytypes.OwnerNameLabel: injection.GetName(),
 			},
 			Annotations: map[string]string{
 				mytypes.InjectionVersionAnnotationKey: injection.GetResourceVersion(),
