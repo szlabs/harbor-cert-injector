@@ -95,7 +95,7 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 			return nil
 		}
 
-		return errs.Wrap("get target resource error", err)
+		return errs.Wrap("failed to get target resource", err)
 	}
 
 	// Resource is being deleted.
@@ -123,10 +123,11 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 	if len(ciList.Items) != 0 {
 		certInjection = &ciList.Items[0]
 	} else {
+		cc.logger.Info("create new as underlying cert injection not found")
 		// Not found and create a new CR.
 		cij, err := cc.createCertInjectionCR(target)
 		if err != nil {
-			return errs.Wrap("create CertInjection CR error", err)
+			return errs.Wrap("failed to create CertInjection CR", err)
 		}
 
 		certInjection = cij
@@ -142,6 +143,8 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 	// Secret has been changed (created or updated).
 	if secretRef.Name != "" {
 		isCreate := certInjection.Spec.ExternalDNS == ""
+
+		cc.logger.Info("Source CA secret has changes", "isCreate", isCreate)
 
 		// Set the spec.
 		certInjection.Spec.ExternalDNS = injection.ExternalDNS
@@ -164,6 +167,8 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 				return errs.Wrap("failed to create cert injection CR", err)
 			}
 
+			cc.logger.Info("Cert injection is created", "name", certInjection.GetName())
+
 			// Set owner reference to the created CA secret.
 			if err := cc.secretMgr.AssignOwner(ctx, certInjection, secretRef); err != nil {
 				return errs.Wrap("failed to assign owner to secret", err)
@@ -176,6 +181,8 @@ func (cc *commonController) Reconcile(ctx context.Context, name types.Namespaced
 		if err := cc.Update(ctx, certInjection); err != nil {
 			return errs.Wrap("update cert injection CR error", err)
 		}
+
+		cc.logger.Info("Cert injection is updated", "name", certInjection.GetName())
 	}
 
 	return nil

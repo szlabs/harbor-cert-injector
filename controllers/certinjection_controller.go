@@ -53,6 +53,8 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger := log.FromContext(ctx)
 	logger.WithValues("cert injection", req.NamespacedName)
 
+	logger.Info("Start reconcile loop")
+
 	certInjection := &v1alpha1.CertInjection{}
 	if err := r.Get(ctx, req.NamespacedName, certInjection); err != nil {
 		logger.Error(err, "unable to fetch cert injection")
@@ -146,7 +148,7 @@ func (r *CertInjectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	logger.Info("reconcile completed")
+	logger.Info("Reconcile loop completed")
 	return ctrl.Result{}, nil
 }
 

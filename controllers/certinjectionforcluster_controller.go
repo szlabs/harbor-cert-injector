@@ -54,6 +54,8 @@ func (r *CertInjectionForClusterReconciler) Reconcile(ctx context.Context, req c
 		WithScheme(r.Scheme).
 		Reconciler()
 
+	logger.Info("Start reconcile loop")
+
 	// Do reconcile.
 	if err := reconciler.Reconcile(ctx, req.NamespacedName, func() client.Object {
 		return &goharborv1beta1.HarborCluster{}
